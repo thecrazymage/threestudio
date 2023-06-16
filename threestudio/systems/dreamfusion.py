@@ -7,9 +7,16 @@ from threestudio.systems.base import BaseLift3DSystem
 from threestudio.utils.ops import binary_cross_entropy, dot
 from threestudio.utils.typing import *
 
+# Отклбчить оптимизацию по умолчанию и все сделать в имеюйщейся функции training step
+
 
 @threestudio.register("dreamfusion-system")
 class DreamFusion(BaseLift3DSystem):
+    # Mine
+    def __init__(self):
+        super().__init__()
+        self.automatic_optimization = False
+
     @dataclass
     class Config(BaseLift3DSystem.Config):
         pass
@@ -34,6 +41,7 @@ class DreamFusion(BaseLift3DSystem):
         )
         self.guidance = threestudio.find(self.cfg.guidance_type)(self.cfg.guidance)
 
+    # Mine: добавлять шаги надо здесь
     def training_step(self, batch, batch_idx):
         out = self(batch)
         prompt_utils = self.prompt_processor()

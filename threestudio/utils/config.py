@@ -33,6 +33,8 @@ class ExperimentConfig:
     use_timestamp: bool = True
     timestamp: Optional[str] = None
     exp_root_dir: str = "outputs"
+    # Mine
+    steps: int = 1
 
     ### these shouldn't be set manually
     exp_dir: str = "outputs/default"

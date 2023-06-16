@@ -60,6 +60,9 @@ def main() -> None:
         help="whether to enable dynamic type checking",
     )
 
+    # Mine
+    parser.add_argument('--steps', type=int, default=1, help="Steps with one u-net calculation")
+
     args, extras = parser.parse_known_args()
 
     # set CUDA_VISIBLE_DEVICES then import pytorch-lightning

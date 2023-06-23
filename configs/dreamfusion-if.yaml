@@ -17,6 +17,7 @@ data:
 
 system_type: "dreamfusion-system"
 system:
+  steps: 1
   geometry_type: "implicit-volume"
   geometry:
     radius: 2.0

@@ -30,6 +30,7 @@ class BaseSystem(pl.LightningModule, Updateable, SaverMixin):
     def __init__(self, cfg, resumed=False) -> None:
         super().__init__()
         self.cfg = parse_structured(self.Config, cfg)
+        # print("CFG INSIDE 0:  ", self.sfg)
         self._save_dir: Optional[str] = None
         self._resumed: bool = resumed
         self._resumed_eval: bool = False
@@ -210,6 +211,9 @@ class BaseLift3DSystem(BaseSystem):
         # geometry export configurations, no need to specify in training
         exporter_type: str = "mesh-exporter"
         exporter: dict = field(default_factory=dict)
+
+        # Mine
+        steps: int = 1
 
     cfg: Config
 

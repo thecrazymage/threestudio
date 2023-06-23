@@ -61,9 +61,11 @@ def main() -> None:
     )
 
     # Mine:
-    parser.add_argument('--steps', type=int, default=1, help="Steps with one u-net calculation")
+    # parser.add_argument('--steps', type=int, default=1, help="Steps with one u-net calculation")
 
     args, extras = parser.parse_known_args()
+
+    # print("ARGS: ", args)
 
     # set CUDA_VISIBLE_DEVICES then import pytorch-lightning
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
@@ -104,6 +106,7 @@ def main() -> None:
     # parse YAML config to OmegaConf
     cfg: ExperimentConfig
     cfg = load_config(args.config, cli_args=extras, n_gpus=n_gpus)
+    # print("CFG: ", cfg)
 
     pl.seed_everything(cfg.seed)
 
@@ -112,6 +115,7 @@ def main() -> None:
         cfg.system, resumed=cfg.resume is not None
     )
     system.set_save_dir(os.path.join(cfg.trial_dir, "save"))
+    # print("system: ", system)
     callbacks = []
     if args.train:
         callbacks += [

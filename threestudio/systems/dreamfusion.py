@@ -14,9 +14,9 @@ from threestudio.utils.typing import *
 @threestudio.register("dreamfusion-system")
 class DreamFusion(BaseLift3DSystem):
     # Mine:
-    def __init__(self):
-        super().__init__()
-        self.automatic_optimization = False
+    # def __init__(self):
+    #     super().__init__()
+    #     self.automatic_optimization = False
 
     @dataclass
     class Config(BaseLift3DSystem.Config):
@@ -44,6 +44,7 @@ class DreamFusion(BaseLift3DSystem):
 
     # Mine: добавлять шаги надо здесь
     def training_step(self, batch, batch_idx):
+        print("CONFIGURE INSIDE:    ", self.cfg.steps)
         out = self(batch)
         prompt_utils = self.prompt_processor()
         guidance_out = self.guidance(

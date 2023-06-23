@@ -60,7 +60,7 @@ def main() -> None:
         help="whether to enable dynamic type checking",
     )
 
-    # Mine
+    # Mine:
     parser.add_argument('--steps', type=int, default=1, help="Steps with one u-net calculation")
 
     args, extras = parser.parse_known_args()

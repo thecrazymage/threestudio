@@ -30,7 +30,6 @@ class BaseSystem(pl.LightningModule, Updateable, SaverMixin):
     def __init__(self, cfg, resumed=False) -> None:
         super().__init__()
         self.cfg = parse_structured(self.Config, cfg)
-        # print("CFG INSIDE 0:  ", self.sfg)
         self._save_dir: Optional[str] = None
         self._resumed: bool = resumed
         self._resumed_eval: bool = False

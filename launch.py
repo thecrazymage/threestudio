@@ -60,12 +60,7 @@ def main() -> None:
         help="whether to enable dynamic type checking",
     )
 
-    # Mine:
-    # parser.add_argument('--steps', type=int, default=1, help="Steps with one u-net calculation")
-
     args, extras = parser.parse_known_args()
-
-    # print("ARGS: ", args)
 
     # set CUDA_VISIBLE_DEVICES then import pytorch-lightning
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
@@ -115,7 +110,6 @@ def main() -> None:
         cfg.system, resumed=cfg.resume is not None
     )
     system.set_save_dir(os.path.join(cfg.trial_dir, "save"))
-    # print("system: ", system)
     callbacks = []
     if args.train:
         callbacks += [

@@ -1,3 +1,5 @@
+# Mine: добавим либу с рандомом
+import random
 from dataclasses import dataclass, field
 
 import torch
@@ -29,7 +31,8 @@ class DreamFusion(BaseLift3DSystem):
         super().configure()
 
     def forward(self, batch: Dict[str, Any]) -> Dict[str, Any]:
-        render_out = self.renderer(**batch)
+        # Mine: Будем передавать в рендерер разафиксированный рандом
+        render_out = self.renderer(**batch, rand=self.rand)
         return {
             **render_out,
         }
@@ -46,7 +49,12 @@ class DreamFusion(BaseLift3DSystem):
     def training_step(self, batch, batch_idx):
         # Шаги мы пробрасывать научились
         # print("CONFIGURE INSIDE:    ", self.cfg.steps)
+
+        # Mine: будем фиксировать рандом здесь. TODO: расписать цикл нескольких шагов
+        self.rand = (random.random(), random.random())
+        # Это вызывает forward от модели
         out = self(batch)
+
         prompt_utils = self.prompt_processor()
         guidance_out = self.guidance(
             out["comp_rgb"], prompt_utils, **batch, rgb_as_latents=False

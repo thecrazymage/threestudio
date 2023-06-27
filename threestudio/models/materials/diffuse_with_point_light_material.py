@@ -47,9 +47,14 @@ class DiffuseWithPointLightMaterial(BaseMaterial):
         light_positions: Float[Tensor, "B ... 3"],
         ambient_ratio: Optional[float] = None,
         shading: Optional[str] = None,
+        # Mine: добавил переменную rand
+        rand: Tuple[float, float] = (None, None),
         **kwargs,
     ) -> Float[Tensor, "B ... 3"]:
         albedo = get_activation(self.cfg.albedo_activation)(features[..., :3])
+
+        if rand is (None, None):
+            rand = (random.random(), random.random())
 
         if ambient_ratio is not None:
             # if ambient ratio is specified, use it
@@ -80,12 +85,13 @@ class DiffuseWithPointLightMaterial(BaseMaterial):
         # clamp albedo to [0, 1] to compute shading
         color = albedo.clamp(0.0, 1.0) * textureless_color
 
+        # Mine: здесь как раз будет фиксироваться рандом и поменяем его на переменную rand
         if shading is None:
             if self.training:
                 # adopt the same type of augmentation for the whole batch
-                if self.ambient_only or random.random() > self.cfg.diffuse_prob:
+                if self.ambient_only or rand[0] > self.cfg.diffuse_prob:
                     shading = "albedo"
-                elif random.random() < self.cfg.textureless_prob:
+                elif rand[1] < self.cfg.textureless_prob:
                     shading = "textureless"
                 else:
                     shading = "diffuse"

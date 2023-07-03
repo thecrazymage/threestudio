@@ -224,6 +224,13 @@ class DeepFloydGuidance(BaseObject):
                         encoder_hidden_states=text_embeddings,
                     )  # (2B, 6, 64, 64)
 
+                    self.cached_values = {
+                        'noise': noise,
+                        'noise_pred': noise_pred,
+                        't': t,
+                        'previous_latents': latents.detach()
+                    }
+
             # perform guidance (high scale from paper!)
             noise_pred_text, noise_pred_uncond = noise_pred.chunk(2)
             noise_pred_text, predicted_variance = noise_pred_text.split(3, dim=1)

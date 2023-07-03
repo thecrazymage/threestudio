@@ -16,8 +16,8 @@ from threestudio.utils.typing import *
 @threestudio.register("dreamfusion-system")
 class DreamFusion(BaseLift3DSystem):
     # Mine: добавляю кастомную оптимизацию
-    def __init__(self):
-        super().__init__()
+    def __init__(self, cfg, resumed=False):
+        super().__init__(cfg, resumed)
         self.automatic_optimization = False
         self.rand = (None, None)
 
@@ -53,10 +53,10 @@ class DreamFusion(BaseLift3DSystem):
 
         # Mine: будем фиксировать рандом здесь.
         self.rand = (random.random(), random.random())
-        opt = self.cfg.optimizer
+        opt = self.optimizers() #self.cfg.optimizer
 
         # Цикл обучения кастомный
-        for i in range(1, self.add_steps+1):
+        for i in range(1, self.cfg.steps+1):
             # Это вызывает forward от модели
             out = self(batch)
 
@@ -64,7 +64,7 @@ class DreamFusion(BaseLift3DSystem):
 
             prompt_utils = self.prompt_processor()
             guidance_out = self.guidance(
-                out["comp_rgb"], prompt_utils, **batch, rgb_as_latents=False, restore_latents=bool(not (i-1))
+                out["comp_rgb"], prompt_utils, **batch, rgb_as_latents=False, restore_latents=bool(i-1)
             )
 
             loss = 0.0

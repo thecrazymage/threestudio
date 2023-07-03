@@ -15,10 +15,11 @@ from threestudio.utils.typing import *
 
 @threestudio.register("dreamfusion-system")
 class DreamFusion(BaseLift3DSystem):
-    # Mine:
-    # def __init__(self):
-    #     super().__init__()
-    #     self.automatic_optimization = False
+    # Mine: добавляю кастомную оптимизацию
+    def __init__(self):
+        super().__init__()
+        self.automatic_optimization = False
+        self.rand = (None, None)
 
     @dataclass
     class Config(BaseLift3DSystem.Config):
@@ -31,7 +32,7 @@ class DreamFusion(BaseLift3DSystem):
         super().configure()
 
     def forward(self, batch: Dict[str, Any]) -> Dict[str, Any]:
-        # Mine: Будем передавать в рендерер разафиксированный рандом
+        # Mine: Будем передавать в рендерер зафиксированный рандом
         render_out = self.renderer(**batch, rand=self.rand)
         return {
             **render_out,
@@ -50,48 +51,58 @@ class DreamFusion(BaseLift3DSystem):
         # Шаги мы пробрасывать научились
         # print("CONFIGURE INSIDE:    ", self.cfg.steps)
 
-        # Mine: будем фиксировать рандом здесь. TODO: расписать цикл нескольких шагов
+        # Mine: будем фиксировать рандом здесь.
         self.rand = (random.random(), random.random())
-        # Это вызывает forward от модели
-        out = self(batch)
+        opt = self.cfg.optimizer
 
-        prompt_utils = self.prompt_processor()
-        guidance_out = self.guidance(
-            out["comp_rgb"], prompt_utils, **batch, rgb_as_latents=False
-        )
+        # Цикл обучения кастомный
+        for i in range(1, self.add_steps+1):
+            # Это вызывает forward от модели
+            out = self(batch)
 
-        loss = 0.0
+            opt.zero_grad()
 
-        for name, value in guidance_out.items():
-            self.log(f"train/{name}", value)
-            if name.startswith("loss_"):
-                loss += value * self.C(self.cfg.loss[name.replace("loss_", "lambda_")])
+            prompt_utils = self.prompt_processor()
+            guidance_out = self.guidance(
+                out["comp_rgb"], prompt_utils, **batch, rgb_as_latents=False, restore_latents=bool(not (i-1))
+            )
 
-        if self.C(self.cfg.loss.lambda_orient) > 0:
-            if "normal" not in out:
-                raise ValueError(
-                    "Normal is required for orientation loss, no normal is found in the output."
-                )
-            loss_orient = (
-                out["weights"].detach()
-                * dot(out["normal"], out["t_dirs"]).clamp_min(0.0) ** 2
-            ).sum() / (out["opacity"] > 0).sum()
-            self.log("train/loss_orient", loss_orient)
-            loss += loss_orient * self.C(self.cfg.loss.lambda_orient)
+            loss = 0.0
 
-        loss_sparsity = (out["opacity"] ** 2 + 0.01).sqrt().mean()
-        self.log("train/loss_sparsity", loss_sparsity)
-        loss += loss_sparsity * self.C(self.cfg.loss.lambda_sparsity)
+            for name, value in guidance_out.items():
+                self.log(f"train/{name}", value)
+                if name.startswith("loss_"):
+                    loss += value * self.C(self.cfg.loss[name.replace("loss_", "lambda_")])
 
-        opacity_clamped = out["opacity"].clamp(1.0e-3, 1.0 - 1.0e-3)
-        loss_opaque = binary_cross_entropy(opacity_clamped, opacity_clamped)
-        self.log("train/loss_opaque", loss_opaque)
-        loss += loss_opaque * self.C(self.cfg.loss.lambda_opaque)
+            if self.C(self.cfg.loss.lambda_orient) > 0:
+                if "normal" not in out:
+                    raise ValueError(
+                        "Normal is required for orientation loss, no normal is found in the output."
+                    )
+                loss_orient = (
+                    out["weights"].detach()
+                    * dot(out["normal"], out["t_dirs"]).clamp_min(0.0) ** 2
+                ).sum() / (out["opacity"] > 0).sum()
+                self.log("train/loss_orient", loss_orient)
+                loss += loss_orient * self.C(self.cfg.loss.lambda_orient)
 
-        for name, value in self.cfg.loss.items():
-            self.log(f"train_params/{name}", self.C(value))
+            loss_sparsity = (out["opacity"] ** 2 + 0.01).sqrt().mean()
+            self.log("train/loss_sparsity", loss_sparsity)
+            loss += loss_sparsity * self.C(self.cfg.loss.lambda_sparsity)
 
-        return {"loss": loss}
+            opacity_clamped = out["opacity"].clamp(1.0e-3, 1.0 - 1.0e-3)
+            loss_opaque = binary_cross_entropy(opacity_clamped, opacity_clamped)
+            self.log("train/loss_opaque", loss_opaque)
+            loss += loss_opaque * self.C(self.cfg.loss.lambda_opaque)
+
+            for name, value in self.cfg.loss.items():
+                self.log(f"train_params/{name}", self.C(value))
+
+
+            self.manual_backward(loss)
+            opt.step()
+
+        # return {"loss": loss}
 
     def validation_step(self, batch, batch_idx):
         out = self(batch)

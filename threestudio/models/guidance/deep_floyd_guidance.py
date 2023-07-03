@@ -96,6 +96,8 @@ class DeepFloydGuidance(BaseObject):
         self.alphas: Float[Tensor, "..."] = self.scheduler.alphas_cumprod.to(
             self.device
         )
+        # Mine: добавление коэффициентов alpha из параметризации
+        self.alpha: Float[Tensor, "..."] = self.scheduler.alphas.to(self.device)
 
         self.grad_clip_val: Optional[float] = None
 
@@ -123,6 +125,7 @@ class DeepFloydGuidance(BaseObject):
         azimuth: Float[Tensor, "B"],
         camera_distances: Float[Tensor, "B"],
         rgb_as_latents=False,
+        restore_latents=False,
         **kwargs,
     ):
         batch_size = rgb.shape[0]
@@ -152,14 +155,30 @@ class DeepFloydGuidance(BaseObject):
                 elevation, azimuth, camera_distances, self.cfg.view_dependent_prompting
             )
             with torch.no_grad():
-                noise = torch.randn_like(latents)
-                latents_noisy = self.scheduler.add_noise(latents, noise, t)
-                latent_model_input = torch.cat([latents_noisy] * 4, dim=0)
-                noise_pred = self.forward_unet(
-                    latent_model_input,
-                    torch.cat([t] * 4),
-                    encoder_hidden_states=text_embeddings,
-                )  # (4B, 6, 64, 64)
+                if restore_latents:
+                    previous_latents = self.cached_values['previous_latents']
+                    t = self.cached_values['t']
+                    noise = self.cached_values['noise']
+                    latents_noisy = self.scheduler.add_noise(latents, noise, t)
+                    noise_pred = self.cached_values['noise_pred']
+
+                    self.cached_values['previous_latents'] = latents.detach()
+                else:
+                    noise = torch.randn_like(latents)
+                    latents_noisy = self.scheduler.add_noise(latents, noise, t)
+                    latent_model_input = torch.cat([latents_noisy] * 4, dim=0)
+                    noise_pred = self.forward_unet(
+                        latent_model_input,
+                        torch.cat([t] * 4),
+                        encoder_hidden_states=text_embeddings,
+                    )  # (4B, 6, 64, 64)
+
+                    self.cached_values = {
+                        'noise': noise,
+                        'noise_pred': noise_pred,
+                        't': t,
+                        'previous_latents': latents.detach()
+                    }
 
             noise_pred_text, _ = noise_pred[:batch_size].split(3, dim=1)
             noise_pred_uncond, _ = noise_pred[batch_size : batch_size * 2].split(
@@ -185,16 +204,25 @@ class DeepFloydGuidance(BaseObject):
             )
             # predict the noise residual with unet, NO grad!
             with torch.no_grad():
-                # add noise
-                noise = torch.randn_like(latents)  # TODO: use torch generator
-                latents_noisy = self.scheduler.add_noise(latents, noise, t)
-                # pred noise
-                latent_model_input = torch.cat([latents_noisy] * 2, dim=0)
-                noise_pred = self.forward_unet(
-                    latent_model_input,
-                    torch.cat([t] * 2),
-                    encoder_hidden_states=text_embeddings,
-                )  # (2B, 6, 64, 64)
+                if restore_latents:
+                    previous_latents = self.cached_values['previous_latents']
+                    t = self.cached_values['t']
+                    noise = self.cached_values['noise']
+                    latents_noisy = self.scheduler.add_noise(latents, noise, t)
+                    noise_pred = self.cached_values['noise_pred']
+
+                    self.cached_values['previous_latents'] = latents.detach()
+                else:
+                    # add noise
+                    noise = torch.randn_like(latents)  # TODO: use torch generator
+                    latents_noisy = self.scheduler.add_noise(latents, noise, t)
+                    # pred noise
+                    latent_model_input = torch.cat([latents_noisy] * 2, dim=0)
+                    noise_pred = self.forward_unet(
+                        latent_model_input,
+                        torch.cat([t] * 2),
+                        encoder_hidden_states=text_embeddings,
+                    )  # (2B, 6, 64, 64)
 
             # perform guidance (high scale from paper!)
             noise_pred_text, noise_pred_uncond = noise_pred.chunk(2)
@@ -226,7 +254,12 @@ class DeepFloydGuidance(BaseObject):
                 f"Unknown weighting strategy: {self.cfg.weighting_strategy}"
             )
 
-        grad = w * (noise_pred - noise)
+        if restore_latents:
+            w1 = (1 - self.alpha[t]) / (torch.sqrt(1 - self.alphas[t]) * torch.sqrt(self.alphas[t]))
+            w2 = (1 - self.alphas[t]) ** (3/2) * torch.sqrt(self.alphas[t]) / (1 - self.alpha[t])
+            grad = w2 * (latents - previous_latents + w1 * (noise_pred - noise))
+        else:
+            grad = w * (noise_pred - noise)
         grad = torch.nan_to_num(grad)
         # clip grad for stable training?
         if self.grad_clip_val is not None:

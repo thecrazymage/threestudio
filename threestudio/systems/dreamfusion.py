@@ -19,7 +19,7 @@ class DreamFusion(BaseLift3DSystem):
     def __init__(self, cfg, resumed=False):
         super().__init__(cfg, resumed)
         self.automatic_optimization = False
-        self.rand = (None, None)
+        self.rand = (None, None, None)
 
     @dataclass
     class Config(BaseLift3DSystem.Config):

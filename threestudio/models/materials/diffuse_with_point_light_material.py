@@ -53,7 +53,7 @@ class DiffuseWithPointLightMaterial(BaseMaterial):
     ) -> Float[Tensor, "B ... 3"]:
         albedo = get_activation(self.cfg.albedo_activation)(features[..., :3])
 
-        if rand is (None, None):
+        if rand == (None, None):
             rand = (random.random(), random.random())
 
         if ambient_ratio is not None:

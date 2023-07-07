@@ -51,6 +51,7 @@ class NeRFVolumeRenderer(VolumeRenderer):
         rays_d: Float[Tensor, "B H W 3"],
         light_positions: Float[Tensor, "B 3"],
         bg_color: Optional[Tensor] = None,
+        rand: Tuple[float, float, float] = (None, None, None),
         **kwargs
     ) -> Dict[str, Float[Tensor, "..."]]:
         batch_size, height, width = rays_o.shape[:3]
@@ -122,10 +123,12 @@ class NeRFVolumeRenderer(VolumeRenderer):
                 viewdirs=t_dirs,
                 positions=positions,
                 light_positions=t_light_positions,
+                rand = rand[1:],
                 **geo_out,
                 **kwargs
             )
-            comp_rgb_bg = self.background(dirs=rays_d_flatten)
+            # Mine: добавил передаваемый рандом
+            comp_rgb_bg = self.background(dirs=rays_d_flatten, rand=rand[0])
         else:
             geo_out = chunk_batch(
                 self.geometry,

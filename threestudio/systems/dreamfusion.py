@@ -52,7 +52,7 @@ class DreamFusion(BaseLift3DSystem):
         # print("CONFIGURE INSIDE:    ", self.cfg.steps)
 
         # Mine: будем фиксировать рандом здесь.
-        self.rand = (random.random(), random.random())
+        self.rand = (random.random(), random.random(), random.random())
         opt = self.optimizers() #self.cfg.optimizer
 
         # Цикл обучения кастомный
@@ -97,7 +97,6 @@ class DreamFusion(BaseLift3DSystem):
 
             for name, value in self.cfg.loss.items():
                 self.log(f"train_params/{name}", self.C(value))
-
 
             self.manual_backward(loss)
             opt.step()

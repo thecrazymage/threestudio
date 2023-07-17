@@ -1,4 +1,4 @@
-name: "dreamfusion-if"
+name: "voxel-dreamfusion-if"
 tag: "${rmspace:${system.prompt_processor.prompt},_}"
 exp_root_dir: "outputs"
 seed: 0
@@ -6,9 +6,9 @@ seed: 0
 data_type: "random-camera-datamodule"
 data:
   steps: 1
-  batch_size: 1
-  width: 64
-  height: 64
+  batch_size: 8
+  width: 128
+  height: 128
   camera_distance_range: [1.5, 2.0]
   fovy_range: [40, 70]
   elevation_range: [-10, 90]
@@ -18,12 +18,12 @@ data:
 
 system_type: "dreamfusion-system"
 system:
-  steps: 1
-  geometry_type: "implicit-volume"
-  geometry:
-    radius: 2.0
-    normal_type: "analytic"
-
+  # steps: 1
+  # geometry_type: "implicit-volume"
+  # geometry:
+  #  radius: 2.0
+  #  normal_type: "analytic"
+  #
     # the density initialization proposed in the DreamFusion paper
     # does not work very well
     # density_bias: "blob_dreamfusion"
@@ -32,32 +32,46 @@ system:
     # density_blob_std: 0.2
 
     # use Magic3D density initialization instead
-    density_bias: "blob_magic3d"
-    density_activation: softplus
-    density_blob_scale: 10.
-    density_blob_std: 0.5
+  #  density_bias: "blob_magic3d"
+  #  density_activation: softplus
+  #  density_blob_scale: 10.
+  #  density_blob_std: 0.5
 
     # coarse to fine hash grid encoding
     # to ensure smooth analytic normals
-    pos_encoding_config:
-      otype: ProgressiveBandHashGrid
-      n_levels: 16
-      n_features_per_level: 2
-      log2_hashmap_size: 19
-      base_resolution: 16
-      per_level_scale: 1.447269237440378 # max resolution 4096
-      start_level: 8 # resolution ~200
-      start_step: 2000
-      update_steps: 500
+  #  pos_encoding_config:
+  #    otype: ProgressiveBandHashGrid
+  #    n_levels: 16
+  #    n_features_per_level: 2
+  #    log2_hashmap_size: 19
+  #    base_resolution: 16
+  #    per_level_scale: 1.447269237440378 # max resolution 4096
+  #    start_level: 8 # resolution ~200
+  #    start_step: 2000
+  #    update_steps: 500
+
+  geometry_type: "volume-grid"
+  geometry:
+    radius: 0.7
+    grid_size: [160, 160, 160]
+    n_feature_dims: 3
+    normal_type: "pred"
+    density_bias: -1.0
+    #density_blob_scale: 10.
+    #density_blob_std: 0.5
+
 
   material_type: "diffuse-with-point-light-material"
   material:
     ambient_only_steps: 2001
-    albedo_activation: sigmoid # scale_-11_01
+    albedo_activation: "sigmoid"
 
-  background_type: "neural-environment-map-background"
+  background_type: "textured-background"
   background:
-    color_activation: sigmoid # scale_-11_01
+    height: 512
+    width: 512
+    color_activation: sigmoid
+
 
   renderer_type: "nerf-volume-renderer"
   renderer:
@@ -81,7 +95,6 @@ system:
     wandb:
       enable: false
       project: 'threestudio'
-      name: None
 
   loss:
     lambda_sds: 1.
@@ -98,10 +111,10 @@ system:
       geometry:
         lr: 0.01
       background:
-        lr: 0.001
+        lr: 0.01
 
 trainer:
-  max_steps: 10000
+  max_steps: 160000
   log_every_n_steps: 1
   num_sanity_val_steps: 0
   val_check_interval: 200

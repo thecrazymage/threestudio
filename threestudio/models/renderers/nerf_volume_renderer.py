@@ -9,7 +9,7 @@ from threestudio.models.background.base import BaseBackground
 from threestudio.models.geometry.base import BaseImplicitGeometry
 from threestudio.models.materials.base import BaseMaterial
 from threestudio.models.renderers.base import VolumeRenderer
-from threestudio.utils.ops import chunk_batch
+from threestudio.utils.ops import chunk_batch, validate_empty_rays
 from threestudio.utils.typing import *
 
 
@@ -104,6 +104,9 @@ class NeRFVolumeRenderer(VolumeRenderer):
                     cone_angle=0.0,
                 )
 
+        ray_indices, t_starts_, t_ends_ = validate_empty_rays(
+            ray_indices, t_starts_, t_ends_
+        )
         ray_indices = ray_indices.long()
         t_starts, t_ends = t_starts_[..., None], t_ends_[..., None]
         t_origins = rays_o_flatten[ray_indices]
@@ -112,8 +115,6 @@ class NeRFVolumeRenderer(VolumeRenderer):
         t_positions = (t_starts + t_ends) / 2.0
         positions = t_origins + t_dirs * t_positions
         t_intervals = t_ends - t_starts
-
-        # TODO: still proceed if the scene is empty
 
         if self.training:
             geo_out = self.geometry(
@@ -128,7 +129,7 @@ class NeRFVolumeRenderer(VolumeRenderer):
                 **kwargs
             )
             # Mine: добавил передаваемый рандом
-            comp_rgb_bg = self.background(dirs=rays_d_flatten, rand=rand[0])
+            comp_rgb_bg = self.background(dirs=rays_d, rand=rand[0])
         else:
             geo_out = chunk_batch(
                 self.geometry,
@@ -145,7 +146,7 @@ class NeRFVolumeRenderer(VolumeRenderer):
                 **geo_out
             )
             comp_rgb_bg = chunk_batch(
-                self.background, self.cfg.eval_chunk_size, dirs=rays_d_flatten
+                self.background, self.cfg.eval_chunk_size, dirs=rays_d
             )
 
         weights: Float[Tensor, "Nr 1"]
@@ -179,15 +180,15 @@ class NeRFVolumeRenderer(VolumeRenderer):
         if bg_color is None:
             bg_color = comp_rgb_bg
         else:
-            if bg_color.shape == (batch_size, 3):
+            if bg_color.shape[:-1] == (batch_size,):
                 # e.g. constant random color used for Zero123
                 # [bs,3] -> [bs, 1, 1, 3]):
                 bg_color = bg_color.unsqueeze(1).unsqueeze(1)
                 #        -> [bs, height, width, 3]):
                 bg_color = bg_color.expand(-1, height, width, -1)
 
-            if bg_color.shape == (batch_size, height, width, 3):
-                bg_color = bg_color.reshape(-1, 3)
+        if bg_color.shape[:-1] == (batch_size, height, width):
+            bg_color = bg_color.reshape(batch_size * height * width, -1)
 
         comp_rgb = comp_rgb_fg + bg_color * (1.0 - opacity)
 

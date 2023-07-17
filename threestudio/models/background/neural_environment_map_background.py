@@ -54,7 +54,6 @@ class NeuralEnvironmentMapBackground(BaseBackground):
             rand = random.random()
 
         # viewdirs must be normalized before passing to this function
-        squeezed_dim = dirs.view(-1, 3).shape[0]
         dirs = (dirs + 1.0) / 2.0  # (-1, 1) => (0, 1)
         dirs_embd = self.encoding(dirs.view(-1, 3))
         color = self.network(dirs_embd).view(*dirs.shape[:-1], self.cfg.n_output_dims)
@@ -68,9 +67,8 @@ class NeuralEnvironmentMapBackground(BaseBackground):
             g = torch.Generator()
             g.manual_seed(int(rand*100))
             color = color * 0 + (  # prevent checking for unused parameters in DDP
-                torch.rand(self.cfg.n_output_dims, generator=g)
-                .to(dirs)[None, :]
-                .expand(squeezed_dim, -1)
-                .view(*dirs.shape[:-1], -1)
+                torch.rand(dirs.shape[0], 1, 1, self.cfg.n_output_dims, generator=g)
+                .to(dirs)
+                .expand(*dirs.shape[:-1], -1)
             )
         return color

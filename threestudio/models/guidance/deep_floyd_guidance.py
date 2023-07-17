@@ -262,8 +262,8 @@ class DeepFloydGuidance(BaseObject):
             )
 
         if restore_latents:
-            w1 = (1 - self.alpha[t]) / (torch.sqrt(1 - self.alphas[t]) * torch.sqrt(self.alphas[t]))
-            w2 = (1 - self.alphas[t]) ** (3/2) * torch.sqrt(self.alphas[t]) / (1 - self.alpha[t])
+            w1 = ((1 - self.alpha[t]) / (torch.sqrt(1 - self.alphas[t]) * torch.sqrt(self.alphas[t]))).view(-1, 1, 1, 1)
+            w2 = ((1 - self.alphas[t]) ** (3/2) * torch.sqrt(self.alphas[t]) / (1 - self.alpha[t])).view(-1, 1, 1, 1)
             grad = w2 * (latents - previous_latents + w1 * (noise_pred - noise))
         else:
             grad = w * (noise_pred - noise)

@@ -104,6 +104,7 @@ class DreamFusion(BaseLift3DSystem):
         # return {"loss": loss}
 
     def validation_step(self, batch, batch_idx):
+        # import pdb; pdb.set_trace()
         out = self(batch)
         self.save_image_grid(
             f"it{self.true_global_step}-{batch['index'][0]}.png",

@@ -5,7 +5,7 @@ seed: 0
 
 data_type: "random-camera-datamodule"
 data:
-  steps: 1
+  # steps: 1
   batch_size: 8
   width: 128
   height: 128
